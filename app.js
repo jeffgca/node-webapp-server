@@ -3,48 +3,55 @@
 var util = require('util'),
 	fs = require('fs'),
 	path = require('path'),
-	url = require('url')
-
-var http = require('http');
-var fs = require('fs');
-// var index = fs.readFileSync('index.html');
+	url = require('url'),
+	http = require('http');
 
 var port;
-
-function isWebAppManifest(_url) {
-	return (_url.pathname.indexOf('.webapp') !== -1);
-}
-
-
-var pp = function(o) { return JSON.stringify(o,null,'  ')};
-// port
-
-// console.log(pp(process.argv), process.argv.length);
-// process.exit();
-
 process.argv.length === 3 ? port = process.argv[2] : port = 8001;
 
-http.createServer(function (req, res) {
-	var contentType = {'Content-Type': 'text/html'}
+var L = console.log,
+	D = util.inspect;
+
+function getMimeType(_path) {
+	var ext = path.extname(_path);
+	var types = {
+		'.html'		: 'text/html',
+		'.css' 		: 'text/css',
+		'.js' 		: 'text/javascript',
+		'.jpeg' 	: 'image/jpeg',
+		'.jpg' 		: 'image/jpeg',
+		'.png' 		: 'image/png',
+		'.json' 	: 'application/json',
+		'.pdf' 		: 'application/pdf',
+		'.txt' 		: 'text/plain',
+		'.xml' 		: 'text/xml',
+		'.xml' 		: 'application/rss+xml; charset=ISO-8859-1',
+		'.webapp'	: 'application/x-web-app-manifest+json'
+	}
+
+	if (types[ext]) {
+		return types[ext];
+	} 
+	else {
+		return types['txt'];
+	}
+}
+
+var server = http.createServer(function (req, res) {
+	var parsed = url.parse(req.url);
+	var contentType = {'Content-Type': getMimeType(parsed.pathname) };
+	var requested_file = path.join(__dirname, parsed.pathname);
 
 	if (!fs.existsSync(requested_file)) {
-		res.writeHead(404, contentType);
-		res.end('404: Not Found')
+		L('404: '+req.url+' text/plain');
+		res.writeHead(404, {'Content-Type': 'text/plain'});
+		res.end('404: Not Found');
 		return;
 	}
 
-
-	var parsed = url.parse(req.url);
-	var requested_file = path.join(__dirname, parsed.pathname);
-
-	var contentType = {'Content-Type': 'text/html'}
-
-	if (isWebAppManifest(parsed)) {
-		contentType = {'Content-Type': 'application/x-web-app-manifest+json'};
-	}
-
+	L('200: '+req.url + ' '+contentType['Content-Type']);
 	res.writeHead(200, contentType);
-
-	res.end(requested_file);
-
+	res.end(fs.readFileSync(requested_file, 'utf8'));
 }).listen(port);
+
+L('Listening on port '+port);
